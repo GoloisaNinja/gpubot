@@ -1,0 +1,20 @@
+{
+	"name": "gpubot",
+	"version": "1.0.0",
+	"description": "a gpu shopping bot",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"start": "node --env-file=.env index.js",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [
+		"bot"
+	],
+	"author": "Jon Collins",
+	"license": "ISC",
+	"dependencies": {
+		"nodemailer": "^6.10.0",
+		"puppeteer": "^13.0.1"
+	}
+}
