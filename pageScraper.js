@@ -22,7 +22,7 @@ const pageScraper = async (browser) => {
 		const cells = await page.$$eval('.item-cell', (cell) => {
 			return cell.map((data) => {
 				let promo = data.querySelector('.item-promo');
-				let constraint = '1200.00';
+				let constraint = '650.00';
 				let price = data
 					.querySelector('.price-current')
 					.textContent.match(/\d*,*\d+.\d{2}/g)[0]
