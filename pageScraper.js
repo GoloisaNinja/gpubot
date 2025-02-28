@@ -2,6 +2,7 @@ import fs from 'fs';
 const pageScraper = async (browser) => {
 	const url = 'https://www.newegg.com/p/pl?d=rtx+4070ti&Order=1';
 	const xtUrl = "https://www.newegg.com/p/pl?d=7900+xt&Order=1"
+	const n70xt = "https://www.newegg.com/p/pl?d=rx+9070+xt"
 	let logheader = false;
 	
 	const elementExists = async (selector) => {
@@ -95,6 +96,12 @@ const pageScraper = async (browser) => {
 	await waitForElements(page);
 	const xtCards = await scrapeCards();
 	processCards(xtCards);
+
+	await page.goto(n70xt, { waitUntil: 'load' });
+	console.log(`navigating to ${n70xt}`);
+	await waitForElements(page);
+	const n70Cards = await scrapeCards();
+	processCards(n70Cards);
 	
 	/* ADD TO CART STUFF
 	const hasProductBuyDiv = await elementExists('#ProductBuy');
