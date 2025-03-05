@@ -1,8 +1,10 @@
 import fs from 'fs';
 const pageScraper = async (browser) => {
 	const url = 'https://www.newegg.com/p/pl?d=rtx+4070ti&Order=1';
-	const xtUrl = "https://www.newegg.com/p/pl?d=7900+xt&Order=1"
-	const n70xt = "https://www.newegg.com/p/pl?d=rx+9070+xt"
+	const xtUrl = "https://www.newegg.com/p/pl?d=7900+xt&Order=1";
+	const n70xt = "https://www.newegg.com/p/pl?d=rx+9070+xt&Order=1";
+	const sapphireUrl = "https://www.newegg.com/p/pl?d=sapphire+pure+rx+9070+xt&Order=1";
+	const asRockUrl = "https://www.newegg.com/p/pl?d=asrock+rx+9070+xt&Order=1";
 	let logheader = false;
 	
 	const elementExists = async (selector) => {
@@ -26,7 +28,8 @@ const pageScraper = async (browser) => {
 		const cells = await page.$$eval('.item-cell', (cell) => {
 			return cell.map((data) => {
 				let promo = data.querySelector('.item-promo');
-				let constraint = '750.00';
+				let lowerConstraint = '499.99';
+				let upperConstraint = '750.00';
 				let price = data
 					.querySelector('.price-current')
 					.textContent.match(/\d*,*\d+.\d{2}/g)[0]
@@ -36,7 +39,7 @@ const pageScraper = async (browser) => {
 						return null;
 					}
 				}
-				if (parseFloat(price) > parseFloat(constraint)) {
+				if ((parseFloat(price) < parseFloat(lowerConstraint)) || (parseFloat(price) > parseFloat(upperConstraint))) {
 					return null;
 				}
 				return {
@@ -102,6 +105,18 @@ const pageScraper = async (browser) => {
 	await waitForElements(page);
 	const n70Cards = await scrapeCards();
 	processCards(n70Cards);
+
+	await page.goto(sapphireUrl, { waitUntil: 'load' });
+	console.log(`navigating to ${sapphireUrl}`);
+	await waitForElements(page);
+	const sapphireCards = await scrapeCards();
+	processCards(sapphireCards);
+
+	await page.goto(asRockUrl, { waitUntil: 'load' });
+	console.log(`navigating to ${asRockUrl}`);
+	await waitForElements(page);
+	const asRockCards = await scrapeCards();
+	processCards(asRockCards);
 	
 	/* ADD TO CART STUFF
 	const hasProductBuyDiv = await elementExists('#ProductBuy');
