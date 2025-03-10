@@ -1,12 +1,23 @@
 import fs from 'fs';
 const pageScraper = async (browser) => {
+	// lINE 205 CONTAINS THE FINAL BUY BOT CLICK - ONLY UNCOMMENT IF YOU WANT A BOT TO BUY YOU A CARD!
+	/* TEST URLS 
 	const url = 'https://www.newegg.com/p/pl?d=rtx+4070ti&Order=1';
 	const xtUrl = "https://www.newegg.com/p/pl?d=7900+xt&Order=1";
 	const n70xt = "https://www.newegg.com/p/pl?d=rx+9070+xt&Order=1";
 	const sapphireUrl = "https://www.newegg.com/p/pl?d=sapphire+pure+rx+9070+xt&Order=1";
 	const asRockUrl = "https://www.newegg.com/p/pl?d=asrock+rx+9070+xt&Order=1";
+	// CARDS.TXT HEADER
 	let logheader = false;
-	
+	*/
+	const baseUrl = 'https://www.newegg.com';
+	// SPECIFIC/DESIRED CARD URL
+	//const testCardUrl = 'https://www.newegg.com/peladn-rx-580/p/27N-008H-00024';
+	const cardUrl = 'https://www.newegg.com/gigabyte-gv-r9070xtgaming-16gd-amd-radeon-rx-9070-xt-16gb-gddr6/p/N82E16814932783?Item=N82E16814932783'
+	const backupCardUrl = 'https://www.newegg.com/xfx-swift-rx-97tswf3w9-amd-radeon-rx-9070-xt-16gb-gddr6/p/N82E16814150907?Item=N82E16814150907'
+	// BOOLEAN GLOBAL PURCHASE SUCCESS VAR
+	let success = false;
+	// BOOLEAN ELEMENT RETURN FUNC
 	const elementExists = async (selector) => {
 		const element = await page.$(selector);
 		if (element) {
@@ -14,6 +25,7 @@ const pageScraper = async (browser) => {
 		}
 		return false;
 	};
+	/* LOGGING CARDS FOR EMAILS SECTION - NO PURCHASE LOGIC
 	const waitForElements =  async(page) => {
 		await page.waitForSelector('.item-features', { visible: true });
 		await page.waitForSelector(
@@ -117,39 +129,127 @@ const pageScraper = async (browser) => {
 	await waitForElements(page);
 	const asRockCards = await scrapeCards();
 	processCards(asRockCards);
-	
-	/* ADD TO CART STUFF
-	const hasProductBuyDiv = await elementExists('#ProductBuy');
-	if (hasProductBuyDiv) {
-		const addToCartExists = await elementExists(
-			'#ProductBuy > div > div:nth-child(2) > button.btn'
-		);
-		if (addToCartExists) {
-			await page.click('#ProductBuy > div > div:nth-child(2) > button.btn');
-			await page.waitForSelector('.modal-footer');
-			await page.click('.modal-footer > button:nth-child(1)');
-			await page.waitForSelector('.item-actions');
-			const [response] = await Promise.all([
-				page.waitForNavigation(),
-				page.click('.item-actions > button:nth-child(3)'),
-			]);
-			const data = 'PURCHASE SUCCESS';
-			fs.writeFile('purchased.txt', data, 'utf8', function (err) {
-				if (err) {
-					return console.log(err);
+
+	*/
+
+	// PURCHASING LOGIC SECTION - CAUTION!! WILL PURCHASE CARDS AUTOMATICALLY
+
+	let page = await browser.newPage();
+	console.log(`navigating to ${baseUrl}`);
+	await page.goto(baseUrl, { waitUntil: 'load' });
+	// BEHOLD - THE LOGIN PROCESS...
+	const loginBtn = await elementExists('.header2021-account')
+	if (loginBtn) {
+		const [response] = await Promise.all([
+			page.waitForNavigation(),
+			page.click('.header2021-account > a'),
+		]);
+		await page.waitForSelector('#labeled-input-signEmail');
+		await page.type('#labeled-input-signEmail', process.env.NEWEGGEMAIL);
+		await page.click('#signInSubmit');
+		await page.waitForSelector('#labeled-input-password');
+		await page.type('#labeled-input-password', process.env.NEWEGGPASS)
+		const [presponse] = await Promise.all([
+			page.waitForNavigation(),
+			page.click('#signInSubmit'),
+		]);
+	}
+	// PURCHASING LOGIC FOR CARD URLS...
+	const attemptPurchase = async (url) => {
+		// AWAIT NAV TO CARD URL
+		await page.goto(url, { waitUntil: 'load' });
+		console.log(`navigating to ${url}`);
+		//await waitForElements(page);
+		// DOES THE PAGE HAVE A BUY BUTTON
+		const hasProductBuyDiv = await elementExists('#ProductBuy');
+		if (hasProductBuyDiv) {
+			const addToCartExists = await elementExists(
+				'#ProductBuy > div > div:nth-child(2) > button.btn'
+			);
+			// DOES THE PAGE HAVE A ADD TO CART BUTTON
+			if (addToCartExists) {
+				let cardTitle = await page.$eval('.product-title', (title) => title.textContent);
+				await page.click('#ProductBuy > div > div:nth-child(2) > button.btn');
+				// MANAGE NEWEGG GARBAGE POPUPS FOR ADD ONS AND PROCEED TO CART
+				await page.waitForSelector('.modal-footer');
+				await page.click('.modal-footer > button:nth-child(1)');
+				await page.waitForSelector('.item-actions');
+				const [response] = await Promise.all([
+					page.waitForNavigation(),
+					page.click('.item-actions > button:nth-child(3)'),
+				]);
+				// SHOULD BE ON CHECKOUT PAGE
+				await page.waitForSelector('.checkout-step-action-edit');
+				// CHOOSE DEFAULT CARD METHOD OVER PAYPAL
+				await page.click('.checkout-step-action-edit');
+				// ENTER CVV
+				await page.waitForSelector('.mask-cvv-4');
+				await page.type('.mask-cvv-4', process.env.CVV);
+				await page.click('.checkout-step-action-done')
+				// DETERMINE IF NEWEGG HAS FULL CARD ENTRY SECURITY CHECK - IF SO, DEAL WITH IT
+				const securityCheck = await elementExists('.mask-cardnumber');
+				if (securityCheck) {
+					await page.type('.mask-cardnumber', process.env.CARDNUMBER)
+					await page.click('.modal-footer > .button-m')
 				}
-				console.log('wrote to purchased...');
-			});
+				// MAX I'M WILLING TO SPEND
+				let upperContraint = "660.00"
+				let cartTotal = await page.$eval('.summary-content-total > span > strong', (el) => el.textContent);
+				console.log(cartTotal)
+				let placeOrderBtnText = await page.$eval('#btnCreditCard', (btn) => btn.textContent)
+				console.log(placeOrderBtnText)
+				// MAKE SURE TOTAL IS SENSICAL AND THAT PLAVE ORDER BUTTON EXISTS
+				if (placeOrderBtnText === 'Place Order' && parseFloat(upperContraint) > parseFloat(cartTotal)) {
+					console.log('order is below contraint and the place order button exists...PURCHASING!!')
+					// ****COMMENT THIS OUT DURING TESTING!! THIS WILL PLACE THE ORDER!!****
+					await page.click('#btnCreditCard') // COMMENT THIS OUT TO AVOID PURCHASE!!!
+					success = true
+					const data = 'PURCHASE SUCCESS\nCard: ' + cardTitle + '\nPrice: ' + cartTotal;
+					fs.writeFile('purchased.txt', data, 'utf8', function (err) {
+						if (err) {
+							return console.log(err);
+						}
+						console.log('wrote to purchased...card acquired!');
+					});
+				} else {
+					const timestamp = Date.now();
+					let data = `\nAttempted Purchase. Constraint or Place Order not met. Time: ${timestamp}`;
+					fs.appendFile('log.txt', data, 'utf8', function (err) {
+						if (err) {
+							return console.log(err);
+						}
+					});
+
+				}
+			} else {
+				const timestamp = Date.now();
+				let data = `\nAttempted Purchase. Could not add to cart - likely out of stock. Time: ${timestamp}`;
+				fs.appendFile('log.txt', data, 'utf8', function (err) {
+					if (err) {
+						return console.log(err);
+					}
+				});
+			}
 		} else {
 			const timestamp = Date.now();
-			let data = `\nAttempted Purchase. Add to cart not available. Time: ${timestamp}`;
+			let data = `\nAttempted Purchase. Check card page - no buy divs on page. Time: ${timestamp}`;
 			fs.appendFile('log.txt', data, 'utf8', function (err) {
 				if (err) {
 					return console.log(err);
 				}
-				console.log('wrote to log...');
 			});
 		}
+	}
+	// FIRST CHOICE CARD
+	await attemptPurchase(cardUrl)
+	/* TESTING AWAITING SUCCESS - SHOULD ABORT SECOND RUN IF FIRST RUN GETS CARD
+	if (!success) {
+		await attemptPurchase(testCardUrl);
 	} */
+	// BACKUP CARD IF FIRST CHOICE NO WORKEY
+	if (!success) {
+		await attemptPurchase(backupCardUrl);
+	}
+	
 };
 export default pageScraper;

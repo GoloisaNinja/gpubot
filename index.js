@@ -4,7 +4,31 @@ import sendMail from './mailer.js';
 import fs from 'fs';
 import readline from 'readline';
 
-let browserInstance = startBrowser();
+let alreadyPurchased = false;
+
+async function readLines(filePath) {
+	const fileStream = fs.createReadStream(filePath);
+	const rl = readline.createInterface({
+		input: fileStream,
+		crlfDelay: Infinity,
+	});
+	for await (const line of rl) {
+		rl.close(); // ONLY READ THE FIRST LINE - NOT THE CARD PURCHASE DETAILS
+		if (line.includes('PURCHASE SUCCESS')) {
+			alreadyPurchased = true;
+		}
+	}
+}
+
+await readLines('./purchased.txt')
+
+if (!alreadyPurchased) {
+	let browserInstance = startBrowser();
+	await scraperController(browserInstance);
+} else {
+	console.log('you already bought a card bruh...')
+}
+/*
 let cardsExist = false;
 await scraperController(browserInstance);
 
@@ -39,4 +63,4 @@ if (cardsExist) {
 			}
 		}
 	);
-}
+} */
